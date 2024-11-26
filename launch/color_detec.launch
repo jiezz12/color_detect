@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="color_detect" name="opencv_camera" type="color_detect" output="screen"/>
+            <param name="image_view" type="bool" value="true"/>
+             <param name="video_device" type="int" value="0"/>
+</launch>
+
