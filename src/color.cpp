@@ -32,6 +32,9 @@ int main(int argc, char** argv)
 
     nh.getParam("image_view", image_view);
     nh.getParam("video_device", video_device);
+    nh.getParam("width", width);
+    nh.getParam("height", height);
+
 
     ros::Rate loop_rate(5);  
 
@@ -45,13 +48,16 @@ int main(int argc, char** argv)
     }  
 
     Mat frame;  //定义opencv形式图像参数
+    //Mat frame = Mat::zeros(1, 5, CV_32F);   // [0,0,0,0,0]
     Mat imghsv;//定义hsv画面
     vector<Mat> hsvSplit;
     Mat mask;
     sensor_msgs::ImagePtr ros_msg;  //定义ros形式图像参数
     color_detect::BoundingBox detect_msg;
-    Mat frame_copy;
+    //Mat frame_copy;
     namedWindow("video");
+    //Mat frame_copy = Mat::ones(1, 5, CV_32F);   // [1,1,1,1,1]
+
 
     Scalar lower_red(130, 50, 50);
     Scalar upper_red(255, 245, 245); // 定义红色的HSV范围
@@ -59,7 +65,6 @@ int main(int argc, char** argv)
     while (ros::ok()) 
     {  
         cap >> frame;  //摄像头画面赋给frame
-        frame_copy = frame.clone();
         if(!frame.empty()) //画面是否正常
         {  
             /*对图片二次处理*/
@@ -83,28 +88,28 @@ int main(int argc, char** argv)
             vector<Vec4i> hierarchy;
             findContours(mask,contours,hierarchy,RETR_EXTERNAL,CHAIN_APPROX_SIMPLE,Point());  
             //ROS_INFO("个数为%d",int(contours.size()));
-            vector<double> Area(contours.size());
-            if(contours.size() > 0 )
+            std::vector<std::vector<cv::Point> >::const_iterator itc = contours.begin();
+            std::vector<std::vector<cv::Point> >::const_iterator max_c = contours.begin();
+            if(	(!contours.empty() && !hierarchy.empty()))
             {
                         //寻找最大面积的轮廓
-                        for (int i = 1; i < contours.size(); i++) {
-                            Area[i] = contourArea(contours[i]);
-                            if (Area[i] > Area[max]) {
-                                max = i;
-                            }   
+                        while (itc != contours.end())
+                        {
+                           if( cv::contourArea(*itc) >  cv::contourArea(*max_c)) {
+                                max_c = itc;
+                            }
+                            itc++;
                         }
-            Rect boundRect = boundingRect(Mat(contours[max]));
+            Rect boundRect = boundingRect(*max_c);
             circle(frame, Point(boundRect.x + boundRect.width/2, boundRect.y + boundRect.height/2), 5, Scalar(0,0,255), -1);
-            ROS_INFO("x:%d,y:%d",boundRect.x+ boundRect.width/2, boundRect.y + boundRect.height/2);
             rectangle(frame, Point(boundRect.x, boundRect.y), Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), Scalar( 0, 0, 255), 2);
+
+            ROS_INFO("x:%d,y:%d",boundRect.x+ boundRect.width/2, boundRect.y + boundRect.height/2);
             detect_msg.Class = "red";
             detect_msg.xmin = boundRect.x;
             detect_msg.xmax=boundRect.x + boundRect.width;
             detect_msg.ymin=boundRect.y;
             detect_msg.ymax= boundRect.y + boundRect.height;
-            }
-            else{
-                frame = frame_copy;
             }
         //circle(frame, Point(50, 50), 45, Scalar(0, 0, 220), -1, 8, 0);        
 
