@@ -9,6 +9,10 @@
 #include <std_msgs/String.h>
 #include <color_detect/BoundingBox.h>
 
+#include<string>
+#include <fstream>
+#include <unistd.h> // Linux系统中
+
 //cmakelists添加环境配置参数find_package(OpenCV REQUIRED)
 
 using namespace cv;
@@ -20,6 +24,24 @@ int video_device;
 
 int width = 800; // 设置图像宽度
 int height = 600; // 设置图像高度
+int H = 200,S = 150,V = 150;
+
+Mat frame;  //定义opencv形式图像参数
+//Mat frame = Mat::zeros(1, 5, CV_32F);   // [0,0,0,0,0]
+//Mat frame_copy;
+//Mat frame_copy = Mat::ones(1, 5, CV_32F);   // [1,1,1,1,1]
+
+Mat imghsv;//定义hsv画面
+vector<Mat> hsvSplit;
+Mat mask;
+sensor_msgs::ImagePtr ros_msg;  //定义ros形式图像参数
+color_detect::BoundingBox detect_msg;
+
+// Scalar lower_red(130, 50, 50);
+// Scalar upper_red(255, 245, 245); // 定义红色的HSV范围
+
+
+void on_mouse(int event, int x, int y, int flags, void* userdata);
 
 int main(int argc, char** argv)  
 {  
@@ -34,9 +56,14 @@ int main(int argc, char** argv)
     nh.getParam("video_device", video_device);
     nh.getParam("width", width);
     nh.getParam("height", height);
+    nh.getParam("H", H);
+    nh.getParam("S", S);
+    nh.getParam("V", V);
 
 
     ros::Rate loop_rate(5);  
+
+    namedWindow("video");
 
     VideoCapture cap(video_device);  //dev/video0
     cap.set(cv::CAP_PROP_FRAME_WIDTH, width); // 设置图像宽度
@@ -47,23 +74,13 @@ int main(int argc, char** argv)
         return 1;  
     }  
 
-    Mat frame;  //定义opencv形式图像参数
-    //Mat frame = Mat::zeros(1, 5, CV_32F);   // [0,0,0,0,0]
-    Mat imghsv;//定义hsv画面
-    vector<Mat> hsvSplit;
-    Mat mask;
-    sensor_msgs::ImagePtr ros_msg;  //定义ros形式图像参数
-    color_detect::BoundingBox detect_msg;
-    //Mat frame_copy;
-    namedWindow("video");
-    //Mat frame_copy = Mat::ones(1, 5, CV_32F);   // [1,1,1,1,1]
-
-
-    Scalar lower_red(130, 50, 50);
-    Scalar upper_red(255, 245, 245); // 定义红色的HSV范围
     int max = 0;
     while (ros::ok()) 
     {  
+
+        Scalar lower_red(H - 30, S - 30, V - 30);
+        Scalar upper_red(H + 30, S + 30, V + 30); // 定义红色的HSV范围
+
         cap >> frame;  //摄像头画面赋给frame
         if(!frame.empty()) //画面是否正常
         {  
@@ -104,12 +121,16 @@ int main(int argc, char** argv)
             circle(frame, Point(boundRect.x + boundRect.width/2, boundRect.y + boundRect.height/2), 5, Scalar(0,0,255), -1);
             rectangle(frame, Point(boundRect.x, boundRect.y), Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), Scalar( 0, 0, 255), 2);
 
-            ROS_INFO("x:%d,y:%d",boundRect.x+ boundRect.width/2, boundRect.y + boundRect.height/2);
+            //ROS_INFO("x:%d,y:%d",boundRect.x+ boundRect.width/2, boundRect.y + boundRect.height/2);
             detect_msg.Class = "red";
             detect_msg.xmin = boundRect.x;
             detect_msg.xmax=boundRect.x + boundRect.width;
             detect_msg.ymin=boundRect.y;
             detect_msg.ymax= boundRect.y + boundRect.height;
+            }
+            else
+            {
+
             }
         //circle(frame, Point(50, 50), 45, Scalar(0, 0, 220), -1, 8, 0);        
 
@@ -125,6 +146,7 @@ int main(int argc, char** argv)
             if(image_view)
             {
                 imshow("video", frame);
+                setMouseCallback("video", on_mouse, 0);
                // imshow("mask",mask);
                
                 int c = waitKey(1);
@@ -141,3 +163,27 @@ int main(int argc, char** argv)
     ros::spinOnce();  
     loop_rate.sleep();  
 }  
+
+void on_mouse(int event, int x, int y, int flags, void* userdata)
+{
+    if (event == EVENT_LBUTTONDOWN) //定义一个鼠标左键按下去的事件
+    {
+        H = imghsv.at<Vec3b>(y,x )[0];
+        S = imghsv.at<Vec3b>(y, x)[1];
+        V = imghsv.at<Vec3b>(y,x)[2];
+        cout << "像素点的HSV值为："<< " H: " << H << " S: " << S << " V: " << V<<endl;
+        //ROS_INFO("hsv=",imghsv.at(y,x));
+        // char path[255];
+        // getcwd(path, 255);
+        //ROS_INFO("%s,%d",path,strlen(path));
+        ofstream file("output.txt");
+        if (file.is_open()) {
+            file << "H: "<<H<<" S: " << S<< "  V: "<<V<< endl;
+            ROS_INFO("成功保存参数");
+            file.close();
+        } else {
+            ROS_ERROR("Failed to open file");
+        }
+
+    }
+}
