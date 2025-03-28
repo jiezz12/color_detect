@@ -19,7 +19,7 @@ using namespace cv;
 using namespace std;
 
 
-bool image_view = 1;
+bool image_view ;
 int video_device;
 
 int width = 800; // 设置图像宽度
@@ -46,11 +46,10 @@ void on_mouse(int event, int x, int y, int flags, void* userdata);
 int main(int argc, char** argv)  
 {  
     ros::init(argc, argv, "opencv_camera");  
-    ros::NodeHandle nh("~");  
+    ros::NodeHandle nh;  
     image_transport::ImageTransport it(nh);  
     image_transport::Publisher image_pub = it.advertise("image", 10);  
     ros::Publisher boundingbox_pub = nh.advertise<color_detect::BoundingBox>("color_detect",10);
-
 
     nh.getParam("image_view", image_view);
     nh.getParam("video_device", video_device);
@@ -60,6 +59,7 @@ int main(int argc, char** argv)
     nh.getParam("S", S);
     nh.getParam("V", V);
 
+    ROS_INFO("view:%d",image_view);
 
     ros::Rate loop_rate(5);  
 
